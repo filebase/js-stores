@@ -58,6 +58,11 @@ export interface S3BlockstoreInit {
   createIfMissing?: boolean
 
   /**
+   * Prefix to use for S3 commands
+   */
+  prefix?: string
+
+  /**
    * Control how CIDs map to paths and back
    */
   shardingStrategy?: ShardingStrategy
@@ -70,6 +75,7 @@ export class S3Blockstore extends BaseBlockstore {
   public createIfMissing: boolean
   private readonly s3: S3
   private readonly bucket: string
+  private readonly prefix: string | null
   private readonly shardingStrategy: ShardingStrategy
 
   constructor (s3: S3, bucket: string, init?: S3BlockstoreInit) {
@@ -86,6 +92,7 @@ export class S3Blockstore extends BaseBlockstore {
     this.s3 = s3
     this.bucket = bucket
     this.createIfMissing = init?.createIfMissing ?? false
+    this.prefix = typeof init?.prefix === 'string' ? `${init.prefix}/` : null
     this.shardingStrategy = init?.shardingStrategy ?? new NextToLast()
   }
 
@@ -97,7 +104,7 @@ export class S3Blockstore extends BaseBlockstore {
       await this.s3.send(
         new PutObjectCommand({
           Bucket: this.bucket,
-          Key: this.shardingStrategy.encode(key),
+          Key: `${this.prefix}${this.shardingStrategy.encode(key)}`,
           Body: val
         }), {
           abortSignal: options?.signal
@@ -118,7 +125,7 @@ export class S3Blockstore extends BaseBlockstore {
       const data = await this.s3.send(
         new GetObjectCommand({
           Bucket: this.bucket,
-          Key: this.shardingStrategy.encode(key)
+          Key: `${this.prefix}${this.shardingStrategy.encode(key)}`
         }), {
           abortSignal: options?.signal
         }
@@ -161,7 +168,7 @@ export class S3Blockstore extends BaseBlockstore {
       await this.s3.send(
         new HeadObjectCommand({
           Bucket: this.bucket,
-          Key: this.shardingStrategy.encode(key)
+          Key: `${this.prefix}${this.shardingStrategy.encode(key)}`
         }), {
           abortSignal: options?.signal
         }
@@ -191,7 +198,7 @@ export class S3Blockstore extends BaseBlockstore {
       await this.s3.send(
         new DeleteObjectCommand({
           Bucket: this.bucket,
-          Key: this.shardingStrategy.encode(key)
+          Key: `${this.prefix}${this.shardingStrategy.encode(key)}`
         }), {
           abortSignal: options?.signal
         }
@@ -209,6 +216,7 @@ export class S3Blockstore extends BaseBlockstore {
         const data = await this.s3.send(
           new ListObjectsV2Command({
             Bucket: this.bucket,
+            Prefix: typeof this.prefix === 'string' ? this.prefix : undefined,
             ...params
           }), {
             abortSignal: options?.signal
