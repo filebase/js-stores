@@ -1,6 +1,7 @@
 node_modules
 build
 dist
+!**packages/blockstore-s3/dist
 .docs
 .coverage
 node_modules
