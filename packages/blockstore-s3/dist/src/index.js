@@ -159,7 +159,7 @@ export class S3Blockstore extends BaseBlockstore {
             while (true) {
                 const data = await this.s3.send(new ListObjectsV2Command({
                     Bucket: this.bucket,
-                    Prefix: this.prefix ?? undefined,
+                    Prefix: typeof this.prefix === 'string' ? this.prefix : undefined,
                     ...params
                 }), {
                     abortSignal: options?.signal

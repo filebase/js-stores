@@ -43,7 +43,7 @@ export interface S3BlockstoreInit {
      */
     createIfMissing?: boolean;
     /**
-     * Prefix to use for S3 operations
+     * Prefix to use for S3 commands
      */
     prefix?: string;
     /**
