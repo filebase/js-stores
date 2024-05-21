@@ -158,7 +158,7 @@ export class S3Datastore extends BaseDatastore {
       // @ts-expect-error s3 types define their own Blob as an empty interface
       return await toBuffer(data.Body)
     } catch (err: any) {
-      if (err.statusCode === 404) {
+      if (err.$metadata?.httpStatusCode === 404) {
         throw Errors.notFoundError(err)
       }
       throw err
@@ -231,26 +231,24 @@ export class S3Datastore extends BaseDatastore {
         return
       }
 
-      if (data == null || data.Contents == null) {
-        throw new Error('Not found')
-      }
+      if (data.Contents && data.Contents.length > 0) {
+        for (const d of data.Contents) {
+          if (d.Key == null) {
+            continue;
+          }
 
-      for (const d of data.Contents) {
-        if (d.Key == null) {
-          throw new Error('Not found')
+          // Remove the path from the key
+          yield new Key(d.Key.slice((this.path ?? '').length), false)
         }
 
-        // Remove the path from the key
-        yield new Key(d.Key.slice((this.path ?? '').length), false)
-      }
+        // If we didn't get all records, recursively query
+        if (data.IsTruncated === true) {
+          // If NextMarker is absent, use the key from the last result
+          params.StartAfter = data.Contents[data.Contents.length - 1].Key
 
-      // If we didn't get all records, recursively query
-      if (data.IsTruncated === true) {
-        // If NextMarker is absent, use the key from the last result
-        params.StartAfter = data.Contents[data.Contents.length - 1].Key
-
-        // recursively fetch keys
-        yield * this._listKeys(params)
+          // recursively fetch keys
+          yield* this._listKeys(params)
+        }
       }
     } catch (err: any) {
       throw new Error(err.code)
@@ -268,7 +266,7 @@ export class S3Datastore extends BaseDatastore {
         yield res
       } catch (err: any) {
         // key was deleted while we are iterating over the results
-        if (err.statusCode !== 404) {
+        if (err.$metadata?.httpStatusCode === 404) {
           throw err
         }
       }
@@ -304,7 +302,7 @@ export class S3Datastore extends BaseDatastore {
         }
       )
     } catch (err: any) {
-      if (err.statusCode !== 404) {
+      if (err.$metadata?.httpStatusCode === 404) {
         if (this.createIfMissing) {
           await this.s3.send(
             new CreateBucketCommand({
